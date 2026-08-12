@@ -20,5 +20,5 @@
 
     "types": ["node"]
   },
-  "include": ["src", "server"]
+  "include": ["src", "server", "api"]
 }
