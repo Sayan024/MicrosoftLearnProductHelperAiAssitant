@@ -28,7 +28,14 @@ export interface AskSuccessResponse {
 }
 
 export interface AskErrorResponse {
-  error: "mcp_unreachable" | "no_docs_found" | "generation_failed" | "empty_generation" | "off_topic" | "bad_request";
+  error:
+    | "mcp_unreachable"
+    | "no_docs_found"
+    | "generation_failed"
+    | "empty_generation"
+    | "off_topic"
+    | "bad_request"
+    | "rate_limited";
   message: string;
 }
 

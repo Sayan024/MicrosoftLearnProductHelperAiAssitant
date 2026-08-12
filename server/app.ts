@@ -1,6 +1,7 @@
 import "dotenv/config";
 import express from "express";
 import type { Request, Response } from "express";
+import rateLimit from "express-rate-limit";
 import { fetchDoc, searchDocs } from "./mcpClient.ts";
 import { generateAnswer, OpenRouterEmptyResponseError, OpenRouterError } from "./openrouter.ts";
 import { isLikelyMicrosoftRelated } from "./topicGuard.ts";
@@ -10,9 +11,32 @@ const MAX_SOURCES = 5;
 const FETCH_THRESHOLD_CHARS = 300; // fetch full page when excerpts are this short or shorter
 
 export const app = express();
+
+// Vercel (and most PaaS hosts) sit in front of the app as a single reverse-proxy hop;
+// trusting it is required for express-rate-limit to key off the real client IP
+// (X-Forwarded-For) instead of the proxy's own address.
+app.set("trust proxy", 1);
+
 app.use(express.json({ limit: "1mb" }));
 
-app.post("/api/ask", async (req: Request, res: Response<AskResponse>) => {
+// /api/ask is the only route that costs money (MCP + OpenRouter calls), so it's the
+// one worth protecting from a single client hammering it. Per-instance in-memory store
+// is a soft limit (each Lambda instance tracks its own counts) — fine for deterring
+// casual abuse without adding a Redis/KV dependency for a no-database hobby app.
+const askLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000,
+  limit: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (_req: Request, res: Response<AskResponse>) => {
+    res.status(429).json({
+      error: "rate_limited",
+      message: "You're asking questions faster than I can look them up. Please wait a few minutes and try again.",
+    });
+  },
+});
+
+app.post("/api/ask", askLimiter, async (req: Request, res: Response<AskResponse>) => {
   const body = req.body as Partial<AskRequest>;
   const question = typeof body.question === "string" ? body.question.trim() : "";
   const history = Array.isArray(body.history) ? body.history : [];
