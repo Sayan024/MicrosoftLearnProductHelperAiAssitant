@@ -4,42 +4,40 @@ A focused Microsoft knowledge assistant: ask a question, it searches the Microso
 grounds the answer in the retrieved documentation via an OpenRouter free model, and shows the
 Microsoft Learn sources used.
 
-## Setup
+## Features
 
-1. Install dependencies:
+- **Grounded answers only** — responses are generated strictly from retrieved Microsoft Learn
+  documentation, with an explicit "insufficient documentation" fallback instead of guessed answers.
+- **Cited sources** — every answer is paired with the Microsoft Learn pages it was drawn from.
+- **Live Microsoft Learn search** — queries `microsoft_docs_search` via the official Microsoft
+  Learn MCP endpoint, then falls back to `microsoft_docs_fetch` for full-page content when an
+  excerpt is too thin to answer confidently.
+- **Topic guardrail** — a keyword pre-filter declines clearly off-topic questions before spending
+  an MCP/model call, while still allowing natural follow-up questions mid-conversation.
+- **Conversational follow-ups** — recent chat history is passed back to the model so users can ask
+  follow-up questions without repeating the product name.
+- **Resilient MCP client** — the MCP session is cached and timeout-guarded, dropping and
+  reconnecting automatically on failure instead of leaving requests hanging.
+- **Free-model fallback chain** — supports multiple comma-separated OpenRouter `:free` model ids,
+  tried in order.
+- **No persisted data** — no database, accounts, or stored history; each browser session is
+  self-contained.
 
-   ```sh
-   npm install
-   ```
+## Tech stack
 
-2. Copy the env template and fill in your OpenRouter key + model:
+**Frontend**
+- React 18 + TypeScript
+- Vite (dev server and build)
 
-   ```sh
-   cp .env.example .env
-   ```
+**Backend**
+- Node.js + Express
+- Model Context Protocol SDK (`@modelcontextprotocol/sdk`) over Streamable HTTP, talking to the
+  Microsoft Learn MCP endpoint
+- OpenRouter API for answer generation
 
-   - `OPENROUTER_API_KEY` — get a free key at https://openrouter.ai/keys
-   - `OPENROUTER_MODEL` — one or more comma-separated `:free` model ids. Check what's currently
-     free at https://openrouter.ai/models?max_price=0 (free models rotate; the first id is
-     primary, the rest are automatic fallbacks).
-
-3. Run the app (starts the Vite dev server on :5173 and the API server on :8787, proxied together):
-
-   ```sh
-   npm run dev
-   ```
-
-   Open http://localhost:5173.
-
-## Production
-
-```sh
-npm run build
-NODE_ENV=production npm start
-```
-
-This serves the built frontend and the `/api/ask` route from a single Express process on `PORT`
-(default 8787).
+**Tooling**
+- `tsx` for running/watching the TypeScript server
+- `concurrently` for running the client and server together in development
 
 ## How it works
 
